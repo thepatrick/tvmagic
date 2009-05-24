@@ -106,8 +106,9 @@ class TVMain < OSX::NSObject
 	
 	def process_files
 	
-		@dir_name = "/Volumes/Jaguarundi/Torrents/Done/ToDo/"
-		@dest_dir = "/Volumes/Jaguarundi/Video/TV"
+		@dir_name = "/Volumes/Elephant/To-iTunes/"
+		@dest_dir = "/Volumes/Elephant/Video/TV"
+		@movi_dir = "/Volumes/Elephant/Video/Movies"
 		
 		@processing.stringValue = "Connecting to iTunes..."
 		@itunes = OSA.app('iTunes')
@@ -136,7 +137,7 @@ class TVMain < OSX::NSObject
 		
 			new_number = 0
 			d.each do |f|			
-				if f.to_s.scan(/\.(mov|avi|mp4|mkv)$/).length > 0
+				if f.to_s.scan(/\.(mov|avi|mp4|m4v|mkv)$/).length > 0
 					new_number = new_number + 1
 					@processing.stringValue = "Processing " + new_number.to_s + " of " + number.to_s + " files."
 				end
@@ -174,10 +175,10 @@ class TVMain < OSX::NSObject
 					#OSX::NSLog "Usual'ing: " + f.to_s
 					usual f
 												
-				# Movies
-				#elsif f.to_s.scan(/([a-zA-Z\. 0-9]+)\.[\S\s]([0-9]+)[Ee]([0-9]+)(.*)\.(mov|avi|mp4)$/).length > 0
-				#	OSX::NSLog "Movie'ing: " + f.to_s
-				#	movie f
+				 Movies
+				elsif f.to_s.scan(/^(.*)\.MOVIE\.([a-zA-Z]+)\.(m4v|mp4)$/).length > 0
+					OSX::NSLog "Movie'ing: " + f.to_s
+					movie f
 				end				
 				
 				if f.to_s.scan(/\.(mov|avi|m4v|mp4)$/).length > 0
@@ -196,10 +197,10 @@ class TVMain < OSX::NSObject
 		
 		if(file.to_s.match /([0-9]{4})\.([0-9]{2})\.([0-9]{2})/)
 			OSX::NSLog("It's year-month-day...") unless @superDebug.nil?
-			(year, month, day, guest), x = file.to_s.scan /([0-9]{4})\.([0-9]{2})\.([0-9]{2})\.(.*)\.(mov|avi|m4v|mp4)/	
+			(year, month, day, guest), x = file.to_s.scan /([0-9]{4})\.([0-9]{2})\.([0-9]{2})[\.]?(.*)?\.(mov|avi|m4v|mp4)/	
 		elsif(file.to_s.match /([0-9]{2})\.([0-9]{2})\.([0-9]{4})/)
 			OSX::NSLog("It's month-day-year...") unless @superDebug.nil?
-			(month, day, year, guest), x = file.to_s.scan /([0-9]{2})\.([0-9]{2})\.([0-9]{4})\.(.*)\.(mov|avi|m4v|mp4)/			
+			(month, day, year, guest), x = file.to_s.scan /([0-9]{2})\.([0-9]{2})\.([0-9]{4})[\.]?(.*)?\.(mov|avi|m4v|mp4)/			
 		else
 			OSX::NSLog("We don't know how to handle this file, skip it.") unless @superDebug.nil?
 			return
@@ -211,6 +212,7 @@ class TVMain < OSX::NSObject
 		if figure_out_ep_name
 			episode_name = guest.gsub(/(HDTV|X[vV][iI]D\-|YesTV|MOMENTUM|BAJSKORV|LMAO|PDTV)/, '').gsub('.', ' ').strip		
 		else
+			OSX::NSLog("... things?")
 			OSX::NSLog("Month: " + month) unless @superDebug.nil?
 			OSX::NSLog("Month: " + month.to_i.to_s) unless @superDebug.nil?
 			OSX::NSLog("Month: " + Date::MONTHNAMES[month.to_i]) unless @superDebug.nil?
@@ -323,7 +325,6 @@ class TVMain < OSX::NSObject
 	
 		dest_folder = @dest_dir + "/" + put_in
 		
-		
 		OSX::NSLog "dest_folder: " + dest_folder unless @superDebug.nil?
 		
 		FileUtils.mkdir_p dest_folder
@@ -331,9 +332,16 @@ class TVMain < OSX::NSObject
 		OSX::NSLog "dest_folder created. " unless @superDebug.nil?
 		
 		(extension, y), x = target_file.scan /\.([a-zA-Z0-9]+)$/
+		
+		OSX::NSLog "extension is " + extension
 	
 		dest_file = dest_folder + "/" + episode.to_i.to_s + " " + episode_name.gsub(/\//,'-') + "." + extension
+		
+		OSX::NSLog "Moving to " + dest_file
+		
 		FileUtils.mv target_file, dest_file
+		
+		OSX::NSLog "Adding to iTunes " + dest_file
 		
 		file = @itunes.add(dest_file, @library)
 		unless file.nil?
@@ -348,7 +356,51 @@ class TVMain < OSX::NSObject
 		  file.year = Date.today.year
 		  file.video_kind = OSA::ITunes::EVDK::TV_SHOW
 		end
+		OSX::NSLog "Done adding to iTunes " + dest_file
+		
 	end
+
+	def movie(f)
+	
+		target_file = @dir_name + f
+		
+		OSX::NSLog "target_file: " + target_file unless @superDebug.nil?
+		OSX::NSLog "F: " + f unless @superDebug.nil?
+	
+		title, genre, extension = f.to_s.scan(/^(.*)\.MOVIE\.([a-zA-Z]+)\.(m4v|mp4)$/)[0]
+		
+		OSX::NSLog "Title: " + title.to_s unless @superDebug.nil?
+		OSX::NSLog "Genre: " + genre.to_s unless @superDebug.nil?
+		OSX::NSLog "Extension: " + extension.to_s unless @superDebug.nil?
+		
+		dest_folder = @movi_dir + "/" + genre
+
+		OSX::NSLog "dest_folder: " + dest_folder unless @superDebug.nil?
+
+		FileUtils.mkdir_p dest_folder
+
+		OSX::NSLog "dest_folder created. " unless @superDebug.nil?
+
+		OSX::NSLog "extension is " + extension
+
+		dest_file = dest_folder + "/" + title.gsub(/\//,'-') + "." + extension
+
+		OSX::NSLog "Moving to " + dest_file
+
+		FileUtils.mv target_file, dest_file
+
+		OSX::NSLog "Adding to iTunes " + dest_file + " with genre " + genre
+
+		file = @itunes.add(dest_file, @library)
+		unless file.nil?
+		  file.genre = genre
+		  file.name = title
+		end
+		
+		OSX::NSLog "Added to iTunes " + dest_file
+
+	end
+
 	
 	def wrap_teh_file(file)
 		unless @qt.nil?
